@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(STUDENT)
+  isActive     Boolean  @default(true)
+  student      Student?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Student {
+  id                String             @id @default(uuid())
+  userId            String             @unique
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  phone             String?
+  college           String
+  branch            String
+  semester          Int
+  preferredLanguage LanguagePreference @default(HINGLISH)
+  learningLevel     LearningLevel      @default(BEGINNER)
+  questions         Question[]
+  sessions          StudentSession[]
+  progress          LearningProgress[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@map("students")
+}
+
+model Topic {
+  id          String     @id @default(uuid())
+  title       String
+  subject     String
+  description String
+  level       LearningLevel @default(BEGINNER)
+  questions   Question[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("topics")
+}
+
+model Question {
+  id               String         @id @default(uuid())
+  studentId        String
+  student          Student        @relation(fields: [studentId], references: [id])
+  topicId          String?
+  topic            Topic?         @relation(fields: [topicId], references: [id])
+  rawText          String
+  detectedLanguage String
+  translatedText   String?
+  subject          String?
+  status           QuestionStatus @default(PENDING)
+  aiResponse       AIResponse?
+  feedbackScore    Int?
+  sessionId        String?
+  createdAt        DateTime       @default(now())
+
+  @@map("questions")
+}
+
+model AIResponse {
+  id              String   @id @default(uuid())
+  questionId      String   @unique
+  question        Question @relation(fields: [questionId], references: [id])
+  explanation     String
+  hindiExplanation String?
+  examples        Json
+  followUpQuestions Json
+  agentPipeline   String
+  tokensUsed      Int
+  confidenceScore Float
+  processingMs    Int
+  createdAt       DateTime @default(now())
+
+  @@map("ai_responses")
+}
+
+model StudentSession {
+  id             String    @id @default(uuid())
+  studentId      String
+  student        Student   @relation(fields: [studentId], references: [id])
+  startTime      DateTime  @default(now())
+  endTime        DateTime?
+  questionsCount Int       @default(0)
+  topicsAccessed String[]
+
+  @@map("student_sessions")
+}
+
+model LearningProgress {
+  id               String        @id @default(uuid())
+  studentId        String
+  student          Student       @relation(fields: [studentId], references: [id])
+  subject          String
+  topic            String
+  proficiencyScore Float         @default(0)
+  totalQuestions   Int           @default(0)
+  lastAccessed     DateTime      @default(now())
+
+  @@unique([studentId, subject, topic])
+  @@map("learning_progress")
+}
+
+enum Role               { STUDENT ADMIN }
+enum LanguagePreference { ENGLISH HINGLISH HINDI }
+enum LearningLevel      { BEGINNER INTERMEDIATE ADVANCED }
+enum QuestionStatus     { PENDING PROCESSING ANSWERED FAILED }
